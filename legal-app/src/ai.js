@@ -1,17 +1,17 @@
-// تلخيص نص قانوني إلى بنية موحّدة عبر خادم وسيط يستدعي Claude.
-// لا تضع مفتاح API داخل التطبيق أبدًا؛ استدعِ خادمك الخاص.
-export const API_URL = ''; // مثال: https://example.com/api/summarize
+// عنوان الخادم الوسيط (server/). على الجهاز الحقيقي استبدل localhost بعنوان IP جهازك أو الخادم المستضاف.
+export const API_URL = 'http://localhost:8787';
 
-export const PROMPT = `أنت مساعد يبسّط المعلومات القانونية العامة بالعربية.
-من النص التالي أعد JSON فقط بالحقول: title, summary, rights[], duties[], verdict (صح|خطأ|يعتمد), verdictNote.
-لا تخترع مواد قانونية. إن كان الحكم يختلف حسب الدولة فاجعل verdict = "يعتمد".`;
+export async function searchLive(q, platform) {
+  const u = `${API_URL}/api/search?q=${encodeURIComponent(q || '')}&platform=${encodeURIComponent(platform || 'الكل')}`;
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('تعذّر الاتصال بالخادم');
+  return (await r.json()).items;
+}
 
-export async function summarize(text) {
-  if (!API_URL) throw new Error('لم يُضبط عنوان الخادم بعد (API_URL).');
-  const r = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: PROMPT, text }),
+export async function summarize(text, country = '') {
+  const r = await fetch(`${API_URL}/api/summarize`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, country }),
   });
   if (!r.ok) throw new Error('تعذّر التلخيص');
   return r.json();

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { I18nManager, SafeAreaView, View, Text, TextInput, FlatList, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { ITEMS, TOPICS, PLATFORMS } from './src/data';
+import { searchLive } from './src/ai';
 
 I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
@@ -34,7 +35,7 @@ function Card({ item }) {
           {item.duties.map((r, i) => <Text key={i} style={s.li}>• {r}</Text>)}
           <Text style={s.h}>الخلاصة</Text>
           <Text style={s.li}>{item.verdictNote}</Text>
-          <Text style={s.meta}>المصدر: {item.source}</Text>
+          <Text style={s.meta}>المصدر: {item.source}{item.url ? ` — ${item.url}` : ''}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -45,16 +46,27 @@ export default function App() {
   const [q, setQ] = useState('');
   const [topic, setTopic] = useState('الكل');
   const [platform, setPlatform] = useState('الكل');
-  const data = useMemo(() => ITEMS.filter(i =>
+  const [live, setLive] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const runSearch = async () => {
+    setBusy(true); setErr('');
+    try { setLive(await searchLive(q, platform)); }
+    catch (e) { setErr('تعذّر الاتصال بالخادم، تُعرض بيانات تجريبية.'); setLive(null); }
+    setBusy(false);
+  };
+  const data = useMemo(() => (live || ITEMS).filter(i =>
     (topic === 'الكل' || i.topic === topic) &&
     (platform === 'الكل' || i.platform === platform) &&
-    (!q || (i.title + i.summary).includes(q))), [q, topic, platform]);
+    (live || !q || (i.title + i.summary).includes(q))), [q, topic, platform, live]);
 
   return (
     <SafeAreaView style={s.root}>
       <StatusBar style="dark" />
       <Text style={s.app}>حقوقي</Text>
-      <TextInput style={s.input} placeholder="ابحث: عقد، إيجار، مخالفة…" value={q} onChangeText={setQ} textAlign="right" />
+      <TextInput style={s.input} placeholder="ابحث: عقد، إيجار، مخالفة…" value={q} onChangeText={setQ} textAlign="right" onSubmitEditing={runSearch} returnKeyType="search" />
+      {busy && <Text style={s.empty}>جارٍ البحث والتلخيص…</Text>}
+      {!!err && <Text style={s.disc}>{err}</Text>}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chips}>
         {TOPICS.map(t => <Chip key={t} label={t} active={t === topic} onPress={() => setTopic(t)} />)}
       </ScrollView>
